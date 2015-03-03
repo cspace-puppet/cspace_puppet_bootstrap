@@ -45,7 +45,7 @@ if [ `command -v ${WGET_EXECUTABLE}` ]; then
   WGET_FOUND=true
 fi
 
-if [ $WGET_FOUND == true ]; then
+if [[ "$WGET_FOUND" = true ]]; then
   echo "Found executable file '${WGET_EXECUTABLE}' ..."
 else 
   CURL_EXECUTABLE='curl'
@@ -73,8 +73,8 @@ YUM_EXECUTABLE_PATH=`command -v ${YUM_EXECUTABLE}`
 UNZIP_EXECUTABLE='unzip'
 echo "Checking for existence of executable file '${UNZIP_EXECUTABLE}' ..."
 if [ ! `command -v ${UNZIP_EXECUTABLE}` ]; then
-  # If the paths to both package manager executable files were not found
-  # and 'unzip' isn't present, halt script execution with an error.
+  # If the paths to both package manager executable files, 'apt-get' and 'yum',
+  # were not found and 'unzip' isn't present, halt script execution with an error.
   # 'unzip' is required for actions to be performed later.
   if [ -z $APT_GET_EXECUTABLE_PATH ] && [ -z $YUM_EXECUTABLE_PATH ]; then
     echo "Could not find or install executable file ${UNZIP_EXECUTABLE}"
@@ -83,7 +83,7 @@ if [ ! `command -v ${UNZIP_EXECUTABLE}` ]; then
   # Otherwise, install 'unzip' via whichever package manager is available.
   if [ ! -z $APT_GET_EXECUTABLE_PATH ]; then
     echo "Installing '${UNZIP_EXECUTABLE}' ..."
-    apt-get install unzip
+    apt-get -y install unzip
     # TODO: Consider making checks for executable files into a function,
     # in part to avoid 'DRY' violation here and below.
     if [ ! `command -v ${UNZIP_EXECUTABLE}` ]; then
@@ -119,7 +119,7 @@ PUPPET_INSTALL_SCRIPT_NAME='install_puppet.sh'
 if [ ! -e ./$PUPPET_INSTALL_SCRIPT_NAME ]; then
   echo "Downloading script for installing Puppet ..."
   moduleurl="${PUPPET_INSTALL_GITHUB_PATH}/${PUPPET_INSTALL_SCRIPT_NAME}"
-  if [ $WGET_FOUND == true ]; then
+  if [[ "$WGET_FOUND" = true ]]; then
     wget --no-verbose $moduleurl --output-document=$PUPPET_INSTALL_SCRIPT_NAME
   else
     curl --output $PUPPET_INSTALL_SCRIPT_NAME $moduleurl 
@@ -139,11 +139,37 @@ PUPPET_EXECUTABLE='puppet'
 echo "Checking for existence of executable file '${PUPPET_EXECUTABLE}' ..."
 if [ ! `command -v ${PUPPET_EXECUTABLE}` ]; then
   echo "Could not find executable file '${PUPPET_EXECUTABLE}'"
-  exit 1
+  PUPPET_EXECUTABLE_FOUND=false
+fi
+
+PUPPET_EXECUTABLE='puppet'
+if [[ "$PUPPET_EXECUTABLE_FOUND" = false ]]; then
+  # Otherwise, install 'puppet' via whichever package manager is available.
+  echo "Attempting to install Puppet via package manager, using a default system repo ..."
+  if [ ! -z $APT_GET_EXECUTABLE_PATH ]; then
+    echo "Installing '${PUPPET_EXECUTABLE}' ..."
+    apt-get -y install puppet
+    # TODO: As above, consider making checks for executable files into a function,
+    # in part to avoid 'DRY' violation here and below.
+    if [ ! `command -v ${PUPPET_EXECUTABLE}` ]; then
+      echo "Could not find or install executable file ${PUPPET_EXECUTABLE}"
+      exit 1
+    fi
+  elif [ ! -z $YUM_EXECUTABLE_PATH ]; then
+    echo "Installing '${PUPPET_EXECUTABLE}' ..."
+    yum -y install unzip
+    if [ ! `command -v ${PUPPET_EXECUTABLE}` ]; then
+      echo "Could not find or install executable file ${PUPPET_EXECUTABLE}"
+      exit 1
+    fi
+  else
+    echo "Could not install executable file ${PUPPET_EXECUTABLE}"
+    exit 1
+  fi
 fi
 
 # Verify that the default, system-wide Puppet module
-# directory exists (even if it is a simlink). If Puppet is
+# directory exists (even if it is a symlink). If Puppet is
 # installed but this directory doesn't exist, there may have
 # been some problem with its installation.
 
@@ -179,7 +205,7 @@ for module in ${MODULES[*]}
     echo "Downloading CollectionSpace Puppet module '${MODULES[MODULE_COUNTER]}' ..."
     module=${MODULES[MODULE_COUNTER]}
     moduleurl="$GITHUB_REPO/${module}/${GITHUB_ARCHIVE_PATH}/${GITHUB_ARCHIVE_FILENAME}"
-    if [ $WGET_FOUND == true ]; then
+    if [[ "$WGET_FOUND" = true ]]; then
       wget --no-verbose $moduleurl
     else
       # '--location' flag follows redirects
@@ -395,7 +421,7 @@ if [ $SCRIPT_RUNS_UNATTENDED == false ]; then
   esac
 fi
 
-if [ $SCRIPT_RUNS_UNATTENDED == true ]; then
+if [[ "$SCRIPT_RUNS_UNATTENDED" = true ]]; then
   echo "Starting installation ..."
   if [ -x "$installer_script_path" ]; then
     sudo $installer_script_path
