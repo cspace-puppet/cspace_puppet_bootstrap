@@ -342,6 +342,13 @@ ordering_ini_resource+="} "
 
 puppet apply --modulepath $MODULEPATH -e "${ordering_ini_resource}"
 
+# Use Puppet to ensure that Hiera, its key/value lookup tool for
+# configuration data, is also installed.
+# See https://docs.puppetlabs.com/hiera/1/installing.html
+# and https://docs.puppetlabs.com/references/latest/man/resource.html
+
+puppet resource package hiera ensure=installed
+
 # Create a default (initially minimal) Hiera configuration file.
 #
 # TODO: For suggestions related to a plausible initial, non-minimal
