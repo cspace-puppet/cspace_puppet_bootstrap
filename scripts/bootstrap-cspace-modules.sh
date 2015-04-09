@@ -347,6 +347,7 @@ puppet apply --modulepath $MODULEPATH -e "${ordering_ini_resource}"
 # See https://docs.puppetlabs.com/hiera/1/installing.html
 # and https://docs.puppetlabs.com/references/latest/man/resource.html
 
+echo "Ensuring that Hiera is present ..."
 puppet resource package hiera ensure=installed
 
 # Create a default (initially minimal) Hiera configuration file.
