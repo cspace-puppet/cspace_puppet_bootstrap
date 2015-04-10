@@ -364,10 +364,17 @@ puppet resource package hiera ensure=installed
 # https://bugs.launchpad.net/ubuntu/+source/puppet/+bug/1246229/comments/6
 
 echo "Creating default Hiera configuration file ..."
-hiera_config="file { 'Hiera config':"
-hiera_config+="  path    => '${PUPPETPATH}/hiera.yaml', "
-hiera_config+="  content => '---', "
-hiera_config+="} "
+hiera_config="
+file { 'Hiera config':
+  path    => '${PUPPETPATH}/hiera.yaml',
+  content => '---
+:backends:
+  - yaml
+:yaml:
+  :datadir: /etc/puppet/hieradata
+:hierarchy:
+  - cspaceinstance', 
+}"
 
 puppet apply --modulepath $MODULEPATH -e "${hiera_config}"
 
