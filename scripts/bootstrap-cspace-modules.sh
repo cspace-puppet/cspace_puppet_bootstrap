@@ -323,7 +323,6 @@ modulepath_ini_resource+="  setting => '${MODULE_PATH_SETTING_NAME}', "
 modulepath_ini_resource+="  value   => '${PUPPET_CONFIG_VAR}/${MODULES_DIRECTORY_NAME}', "
 modulepath_ini_resource+="  ensure  => 'present', "
 modulepath_ini_resource+="} "
-
 puppet apply --modulepath $MODULEPATH -e "${modulepath_ini_resource}"
 
 # Enable random ordering of unrelated resources on each run,
@@ -339,7 +338,6 @@ ordering_ini_resource+="  setting => 'ordering', "
 ordering_ini_resource+="  value   => 'random', "
 ordering_ini_resource+="  ensure  => 'present', "
 ordering_ini_resource+="} "
-
 puppet apply --modulepath $MODULEPATH -e "${ordering_ini_resource}"
 
 # Use Puppet to ensure that Hiera, its key/value lookup tool for
@@ -348,7 +346,9 @@ puppet apply --modulepath $MODULEPATH -e "${ordering_ini_resource}"
 # and https://docs.puppetlabs.com/references/latest/man/resource.html
 
 echo "Ensuring that Hiera is present ..."
-puppet resource package hiera ensure=installed
+## FIXME: This package name has only been verified for Ubuntu 14.04
+command -v hiera >/dev/null 2>&1 || \
+  puppet resource package ruby-hiera ensure=installed
 
 # Create a default (initially minimal) Hiera configuration file.
 #
@@ -356,6 +356,8 @@ puppet resource package hiera ensure=installed
 # Hiera configuration, see:
 # http://puppetlabs.com/blog/writing-great-modules-part-2
 
+HIERA_DATA_PATH=${PUPPETPATH}/hieradata
+mkdir ${HIERA_DATA_PATH}
 echo "Creating default Hiera configuration file ..."
 hiera_config="
 file { 'Hiera config':
@@ -364,12 +366,37 @@ file { 'Hiera config':
 :backends:
   - yaml
 :yaml:
-  :datadir: ${PUPPETPATH}/hieradata
+  :datadir: ${HIERA_DATA_PATH}
 :hierarchy:
-  - cspaceinstance', 
+  - \"%{::collectionspace_instance}\"
+  - collectionspace_common
+  - \"node/%{::fqdn}\"
+  - \"%{::collectionspace_version}\"
+  - common', 
 }"
-
 puppet apply --modulepath $MODULEPATH -e "${hiera_config}"
+
+# Create a default (initially minimal) 'common' YAML Hiera datasource file.
+
+echo "Creating common Hiera configuration file ..."
+hiera_common_config="
+file { 'Hiera common config':
+  path    => '${HIERA_DATA_PATH}/common.yaml',
+  content => '---',
+}"
+puppet apply --modulepath $MODULEPATH -e "${hiera_common_config}"
+
+# Create a default 'collectionspace_common' YAML Hiera datasource file.
+
+echo "Creating collectionspace_common Hiera configuration file ..."
+hiera_collectionspace_common_config="
+file { 'Hiera collectionspace common config':
+  path    => '${HIERA_DATA_PATH}/collectionspace_common.yaml',
+  content => '---
+collectionspace::cspace_user: cspace',
+}"
+puppet apply --modulepath $MODULEPATH -e "${hiera_collectionspace_common_config}"
+
 
 # Create a shell script that installs a CollectionSpace server instance.
 
@@ -390,7 +417,6 @@ installer_file_resource+="  path    => '${installer_script_path}', "
 installer_file_resource+="  content => \"#!${installer_script_contents}\", "
 installer_file_resource+="  mode    => '744', "
 installer_file_resource+="} "
-
 puppet apply --modulepath $MODULEPATH -e "${installer_file_resource}"
 
 echo "--------------------------------------------------------------------------"
