@@ -356,13 +356,6 @@ puppet resource package hiera ensure=installed
 # Hiera configuration, see:
 # http://puppetlabs.com/blog/writing-great-modules-part-2
 
-# By writing at least a single document separator ('---')
-# to the hiera.yaml file, rather than leaving that file empty, this
-# avoids an "Error from DataBinding 'hiera' while looking up
-# 'cspace_user::user_acct_name': no implicit conversion from nil to integer ...",
-# at least under Ubuntu 13.10. See:
-# https://bugs.launchpad.net/ubuntu/+source/puppet/+bug/1246229/comments/6
-
 echo "Creating default Hiera configuration file ..."
 hiera_config="
 file { 'Hiera config':
@@ -371,7 +364,7 @@ file { 'Hiera config':
 :backends:
   - yaml
 :yaml:
-  :datadir: /etc/puppet/hieradata
+  :datadir: ${PUPPETPATH}/hieradata
 :hierarchy:
   - cspaceinstance', 
 }"
