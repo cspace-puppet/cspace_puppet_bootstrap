@@ -387,11 +387,11 @@ command -v hiera >/dev/null 2>&1 || \
 HIERA_CONFIG_FILENAME=hiera.yaml
 HIERA_PUPPET_CONFIG_FILEPATH=$PUPPETPATH/$HIERA_CONFIG_FILENAME
 HIERA_DATA_PATH=$PUPPETPATH/hieradata
-if [ -d "$HIERA_DATA_PATH" ]; then
+if [ ! -d "$HIERA_DATA_PATH" ]; then
   mkdir $HIERA_DATA_PATH
 fi
-HIERA_DIRECTORY=/etc/hiera
-HIERA_CONFIG_FILEPATH=$HIERA_DIRECTORY/$HIERA_CONFIG_FILENAME
+HIERA_CONFIG_DIRECTORY=/etc
+HIERA_CONFIG_FILEPATH=$HIERA_CONFIG_DIRECTORY/$HIERA_CONFIG_FILENAME
 echo "Creating default Hiera configuration file ..."
 hiera_config="
 file { 'Hiera config':
@@ -413,10 +413,10 @@ puppet apply --modulepath $MODULEPATH -e "${hiera_config}"
 # Symlink the Puppet-specific hiera.yaml config file to the generic location
 # for that file, if the latter is missing. That way, 'hiera' will find its
 # config file without having to include a '-c' param each time it's invoked.
-if [ ! -d "$HIERA_DIRECTORY" ]; then
-  mkdir $HIERA_DIRECTORY
+if [ ! -d "$HIERA_CONFIG_DIRECTORY" ]; then
+  mkdir $HIERA_CONFIG_DIRECTORY
 fi
-if [ -d "$HIERA_DIRECTORY" ]; then
+if [ -d "$HIERA_CONFIG_DIRECTORY" ]; then
   if [ ! -f "$HIERA_CONFIG_FILEPATH" ] && [ -f "$HIERA_PUPPET_CONFIG_FILEPATH" ]; then
     ln -s $HIERA_PUPPET_CONFIG_FILEPATH $HIERA_CONFIG_FILEPATH
   fi
