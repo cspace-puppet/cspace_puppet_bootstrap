@@ -298,7 +298,7 @@ echo "Setting 'modulepath' in the main Puppet configuration file ..."
 # The path below is for a standalone, non-Puppet Enterprise deployment of Puppet.
 # For documentation on this configuration directory and its system-specific locations, see:
 # http://docs.puppetlabs.com/puppet/latest/reference/dirs_confdir.html 
-PUPPET_CONFIG_PATH='/etc/puppet'
+PUPPET_CONFIG_PATH=$PUPPETPATH
 # Variable holding the path to Puppet's configuration directory, used in its own
 # configuration files.
 PUPPET_CONFIG_VAR='$confdir' # The '$' is a literal character in this context
@@ -340,28 +340,62 @@ ordering_ini_resource+="  ensure  => 'present', "
 ordering_ini_resource+="} "
 puppet apply --modulepath $MODULEPATH -e "${ordering_ini_resource}"
 
+# The following function needs to be declared before the code
+# which calls it.
+# See http://unix.stackexchange.com/a/6348
+os_family ()
+{
+  if [ -f /etc/lsb-release ]; then
+      . /etc/lsb-release
+      OS_FAMILY=$(echo "$DISTRIB_ID" | tr '[:upper:]' '[:lower:]')
+  elif [ -f /etc/os-release ]; then
+    . /etc/os-release; echo ${ID_LIKE/*=/}
+    OS_FAMILY=$(echo "$ID_LIKE" | tr '[:upper:]' '[:lower:]')
+  elif [ -f /etc/debian_version ]; then
+      OS_FAMILY=debian
+  elif [ -f /etc/redhat-release ]; then
+      OS_FAMILY=redhat
+  else
+      OS_FAMILY="unrecognized_os_family"
+  fi
+}
+# Invoke the above function to populate the OS_FAMILY variable
+os_family
+
 # Use Puppet to ensure that Hiera, its key/value lookup tool for
 # configuration data, is also installed.
 # See https://docs.puppetlabs.com/hiera/1/installing.html
 # and https://docs.puppetlabs.com/references/latest/man/resource.html
 
 echo "Ensuring that Hiera is present ..."
-## FIXME: This package name has only been verified for Ubuntu 14.04
 command -v hiera >/dev/null 2>&1 || \
-  puppet resource package ruby-hiera ensure=installed
-
+  if [[ "debian" = "$OS_FAMILY" ]]; then
+    puppet resource package ruby-hiera ensure=installed
+  elif [[ "redhat" = "$OS_FAMILY" ]]; then
+    puppet resource package hiera ensure=installed
+  else
+    echo "Hiera is not installed; this script doesn't know how to install it on this OS"
+    exit 1
+  fi
+  
 # Create a default (initially minimal) Hiera configuration file.
 #
 # TODO: For suggestions related to a plausible initial, non-minimal
 # Hiera configuration, see:
 # http://puppetlabs.com/blog/writing-great-modules-part-2
 
-HIERA_DATA_PATH=${PUPPETPATH}/hieradata
-mkdir ${HIERA_DATA_PATH}
+HIERA_CONFIG_FILENAME=hiera.yaml
+HIERA_PUPPET_CONFIG_FILEPATH=$PUPPETPATH/$HIERA_CONFIG_FILENAME
+HIERA_DATA_PATH=$PUPPETPATH/hieradata
+if [ -d "$HIERA_DATA_PATH" ]; then
+  mkdir $HIERA_DATA_PATH
+fi
+HIERA_DIRECTORY=/etc/hiera
+HIERA_CONFIG_FILEPATH=$HIERA_DIRECTORY/$HIERA_CONFIG_FILENAME
 echo "Creating default Hiera configuration file ..."
 hiera_config="
 file { 'Hiera config':
-  path    => '${PUPPETPATH}/hiera.yaml',
+  path    => '${PUPPETPATH}/${HIERA_CONFIG_FILENAME}',
   content => '---
 :backends:
   - yaml
@@ -376,13 +410,27 @@ file { 'Hiera config':
 }"
 puppet apply --modulepath $MODULEPATH -e "${hiera_config}"
 
+# Symlink the Puppet-specific hiera.yaml config file to the generic location
+# for that file, if the latter is missing. That way, 'hiera' will find its
+# config file without having to include a '-c' param each time it's invoked.
+if [ ! -d "$HIERA_DIRECTORY" ]; then
+  mkdir $HIERA_DIRECTORY
+fi
+if [ -d "$HIERA_DIRECTORY" ]; then
+  if [ ! -f "$HIERA_CONFIG_FILEPATH" ] && [ -f "$HIERA_PUPPET_CONFIG_FILEPATH" ]; then
+    ln -s $HIERA_PUPPET_CONFIG_FILEPATH $HIERA_CONFIG_FILEPATH
+  fi
+fi
+
 # Create a default (initially minimal) 'common' YAML Hiera datasource file.
 
 echo "Creating common Hiera configuration file ..."
 hiera_common_config="
 file { 'Hiera common config':
   path    => '${HIERA_DATA_PATH}/common.yaml',
-  content => '---',
+  content => '---
+common::common_version: 1.0
+',
 }"
 puppet apply --modulepath $MODULEPATH -e "${hiera_common_config}"
 
@@ -393,7 +441,8 @@ hiera_collectionspace_common_config="
 file { 'Hiera collectionspace common config':
   path    => '${HIERA_DATA_PATH}/collectionspace_common.yaml',
   content => '---
-collectionspace::cspace_user: cspace',
+collectionspace::cspace_user: cspace
+',
 }"
 puppet apply --modulepath $MODULEPATH -e "${hiera_collectionspace_common_config}"
 
