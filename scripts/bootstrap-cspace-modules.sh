@@ -35,6 +35,10 @@ while getopts ":y" opt; do
   esac
 done
 
+# ###########################################################
+# Ensure that a downloading utility ('wget' or 'curl') exists
+# ###########################################################
+
 # Verify that either the 'wget' or 'curl' executable file
 # exists and is in the current PATH.
 
@@ -103,7 +107,11 @@ if [ ! `command -v ${UNZIP_EXECUTABLE}` ]; then
   fi
 fi
 
-# Install Puppet, if necessary
+# #########################
+# Ensure that Puppet exists
+# #########################
+
+# Ensure that Puppet is present, installing it if necessary.
 # This uses a bootstrap script created and maintained by Daniel Dreier,
 # which works with several Linux distributions, including RedHat-based
 # and Debian-based distros.
@@ -181,7 +189,15 @@ if [ ! -d "${MODULEPATH}" ]; then
   exit 1
 fi
 
+# #######################################
+# Install initially-needed Puppet modules
+# #######################################
+
 # Install the CollectionSpace-related Puppet modules from GitHub.
+
+# FIXME: Make it possible to download modules for a specific
+# version of CollectionSpace, rather than always downloading
+# the latest modules (on the 'master' branch).
 
 GITHUB_REPO='https://github.com/cspace-puppet'
 GITHUB_ARCHIVE_PATH='archive'
@@ -250,7 +266,11 @@ for pf_module in ${PF_MODULES[*]}
     puppet module install --modulepath=$MODULEPATH ${PF_MODULES[PF_COUNTER]}
     let PF_COUNTER++
   done
-  
+
+# ################
+# Configure Puppet
+# ################
+
 # The following function needs to be declared before the code
 # which calls it.
 #
@@ -340,6 +360,13 @@ ordering_ini_resource+="  ensure  => 'present', "
 ordering_ini_resource+="} "
 puppet apply --modulepath $MODULEPATH -e "${ordering_ini_resource}"
 
+# #############################################
+# Install Hiera, a hierarchical key/value store
+# #############################################
+
+# Using Hiera allows Puppet to obtain values from external configuration,
+# rather than from (for instance) hard-coded variable values in code.
+
 # The following function needs to be declared before the code
 # which calls it.
 # See http://unix.stackexchange.com/a/6348
@@ -377,6 +404,10 @@ command -v hiera >/dev/null 2>&1 || \
     echo "Hiera is not installed; this script doesn't know how to install it on this OS"
     exit 1
   fi
+
+# ###############
+# Configure Hiera
+# ###############
   
 # Create a default (initially minimal) Hiera configuration file.
 #
@@ -434,6 +465,10 @@ common::common_version: 1.0
 }"
 puppet apply --modulepath $MODULEPATH -e "${hiera_common_config}"
 
+# #################################################
+# Add CollectionSpace-specific keys/values to Hiera
+# #################################################
+
 # Create a default 'collectionspace_common' YAML Hiera datasource file.
 
 echo "Creating collectionspace_common Hiera configuration file ..."
@@ -446,6 +481,9 @@ collectionspace::cspace_user: cspace
 }"
 puppet apply --modulepath $MODULEPATH -e "${hiera_collectionspace_common_config}"
 
+# ################################################
+# Create a shell script to install CollectionSpace
+# ################################################
 
 # Create a shell script that installs a CollectionSpace server instance.
 
@@ -473,6 +511,10 @@ echo -e "\n"
 echo "Congratulations!"
 echo "Initial prerequisites for a CollectionSpace server were successfully installed.."
 echo -e "\n"
+
+# ############################################################
+# (Optionally) Run the shell script to install CollectionSpace
+# ############################################################
 
 # Depending on whether the '-y' flag was entered as a command line option when
 # this script was executed, either ask the user whether they wish to proceed with
