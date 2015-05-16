@@ -360,12 +360,15 @@ ordering_ini_resource+="  ensure  => 'present', "
 ordering_ini_resource+="} "
 puppet apply --modulepath $MODULEPATH -e "${ordering_ini_resource}"
 
-# #############################################
-# Install Hiera, a hierarchical key/value store
-# #############################################
+# #########################################################
+# Ensure that Hiera (a hierarchical key/value store) exists
+# #########################################################
 
 # Using Hiera allows Puppet to obtain values from external configuration,
 # rather than from (for instance) hard-coded variable values in code.
+#
+# On some systems, Hiera is included with package installs of Puppet,
+# while in others, it needs to be separately installed.
 
 # The following function needs to be declared before the code
 # which calls it.
