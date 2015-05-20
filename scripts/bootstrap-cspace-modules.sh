@@ -8,7 +8,32 @@
 # This script must be run as 'root' (e.g. via 'sudo')
 
 # Uncomment the following line for verbose output, useful when debugging
-# set -x
+set -x
+
+# ###########################################################
+# Variables to set
+# ###########################################################
+
+# GitHub location of the Puppet modules for installing
+# this CollectionSpace server instance
+MODULES_GITHUB_ACCOUNT='https://github.com/cspace-puppet'
+MODULES_GITHUB_BRANCH='master'
+
+# GitHub location of the Hiera config files for
+# configuring this CollectionSpace server instance.
+# (Config files might be downloaded from a different
+# GitHub repo - or account - than the modules repo.)
+
+HEIRA_CONFIG_GITHUB_ACCOUNT="https://raw.githubusercontent.com/cspace-puppet"
+HIERA_CONFIG_GITHUB_REPO="${HEIRA_CONFIG_GITHUB_ACCOUNT}/cspace_hiera_config"
+HIERA_CONFIG_GITHUB_BRANCH='master'
+
+# ###########################################################
+# Start of script
+# ###########################################################
+
+# Save the current directory
+ORIGIN_DIR=`pwd`
 
 SCRIPT_NAME=`basename $0` # Note: script name may be misleading if script is symlinked
 if [ "$EUID" -ne "0" ]; then
@@ -199,10 +224,9 @@ fi
 # version of CollectionSpace, rather than always downloading
 # the latest modules (on the 'master' branch).
 
-GITHUB_REPO='https://github.com/cspace-puppet'
-GITHUB_ARCHIVE_PATH='archive'
-GITHUB_ARCHIVE_FILENAME='master.zip'
-GITHUB_ARCHIVE_MASTER_SUFFIX='-master'
+MODULES_GITHUB_ARCHIVE_PATH='archive'
+MODULES_GITHUB_ARCHIVE_FILENAME="${MODULES_GITHUB_BRANCH}.zip"
+MODULES_GITHUB_ARCHIVE_SUFFIX="-${MODULES_GITHUB_BRANCH}"
 MODULES+=( 
   'puppet' \
   'cspace_environment' \
@@ -220,19 +244,19 @@ for module in ${MODULES[*]}
   do
     echo "Downloading CollectionSpace Puppet module '${MODULES[MODULE_COUNTER]}' ..."
     module=${MODULES[MODULE_COUNTER]}
-    moduleurl="$GITHUB_REPO/${module}/${GITHUB_ARCHIVE_PATH}/${GITHUB_ARCHIVE_FILENAME}"
+    moduleurl="${MODULES_GITHUB_ACCOUNT}/${module}/${MODULES_GITHUB_ARCHIVE_PATH}/${MODULES_GITHUB_ARCHIVE_FILENAME}"
     if [[ "$WGET_FOUND" = true ]]; then
       wget --no-verbose $moduleurl
     else
       # '--location' flag follows redirects
       curl --location --remote-name $moduleurl 
     fi
-    echo "Extracting files from archive file '${GITHUB_ARCHIVE_FILENAME}' ..."
-    unzip -q $GITHUB_ARCHIVE_FILENAME
+    echo "Extracting files from archive file '${MODULES_GITHUB_ARCHIVE_FILENAME}' ..."
+    unzip -q $MODULES_GITHUB_ARCHIVE_FILENAME
     echo "Removing archive file ..."
-    rm $GITHUB_ARCHIVE_FILENAME
-    # GitHub's master branch ZIP archives, when exploded to a directory,
-    # have a '-master' suffix that must be removed.
+    rm $MODULES_GITHUB_ARCHIVE_FILENAME
+    # GitHub's branch ZIP archives, when exploded to a directory,
+    # have a '-branchname' suffix that must be removed.
     # When doing this renaming, first rename any existing directory
     # that might cause a name collision when that suffix is removed.
     if [ -d "${module}" ]; then
@@ -241,7 +265,7 @@ for module in ${MODULES[*]}
       echo "Backed up existing module to $moved_old_module_name ..."
     fi
     echo "Renaming module directory ..."
-    mv "${module}${GITHUB_ARCHIVE_MASTER_SUFFIX}" $module
+    mv "${module}${MODULES_GITHUB_ARCHIVE_SUFFIX}" $module
     let MODULE_COUNTER++
   done
 
@@ -426,6 +450,9 @@ if [ ! -d "$HIERA_DATA_PATH" ]; then
 fi
 HIERA_CONFIG_DIRECTORY=/etc
 HIERA_CONFIG_FILEPATH=$HIERA_CONFIG_DIRECTORY/$HIERA_CONFIG_FILENAME
+# Hiera config files specific to CollectionSpace configuration
+HIERA_CONFIG_CSPACE_INSTANCE=collectionspace_instance
+HIERA_CONFIG_CSPACE_COMMON=collectionspace_common
 echo "Creating default Hiera configuration file ..."
 hiera_config="
 file { 'Hiera config':
@@ -436,10 +463,8 @@ file { 'Hiera config':
 :yaml:
   :datadir: ${HIERA_DATA_PATH}
 :hierarchy:
-  - \"%{::collectionspace_instance}\"
-  - collectionspace_common
-  - \"node/%{::fqdn}\"
-  - \"%{::collectionspace_version}\"
+  - ${HIERA_CONFIG_CSPACE_INSTANCE}
+  - ${HIERA_CONFIG_CSPACE_COMMON}
   - common', 
 }"
 puppet apply --modulepath $MODULEPATH -e "${hiera_config}"
@@ -447,11 +472,8 @@ puppet apply --modulepath $MODULEPATH -e "${hiera_config}"
 # Symlink the Puppet-specific hiera.yaml config file to the generic location
 # for that file, if the latter is missing. That way, 'hiera' will find its
 # config file without having to include a '-c' param each time it's invoked.
-if [ ! -d "$HIERA_CONFIG_DIRECTORY" ]; then
-  mkdir $HIERA_CONFIG_DIRECTORY
-fi
 if [ -d "$HIERA_CONFIG_DIRECTORY" ]; then
-  if [ ! -f "$HIERA_CONFIG_FILEPATH" ] && [ -f "$HIERA_PUPPET_CONFIG_FILEPATH" ]; then
+  if [ -f "$HIERA_PUPPET_CONFIG_FILEPATH" ] && [ ! -f "$HIERA_CONFIG_FILEPATH" ]; then
     ln -s $HIERA_PUPPET_CONFIG_FILEPATH $HIERA_CONFIG_FILEPATH
   fi
 fi
@@ -472,7 +494,33 @@ puppet apply --modulepath $MODULEPATH -e "${hiera_common_config}"
 # Add CollectionSpace-specific keys/values to Hiera
 # #################################################
 
-# Create a default 'collectionspace_common' YAML Hiera datasource file.
+# Note: All CollectionSpace-specific Hiera config files are
+# in YAML format, and their filenames end in a ".yaml" suffix.
+
+# FIXME: Reference variables used above:
+# ${HIERA_CONFIG_CSPACE_INSTANCE}
+# ${HIERA_CONFIG_CSPACE_COMMON}
+
+HIERA_CONFIG_CSPACE_FILES+=(
+  'collectionspace_instance' \
+  'collectionspace_common' \
+  )
+  
+cd $HIERA_DATA_PATH
+let CONFIG_FILE_COUNTER=0
+for config_file in ${HIERA_CONFIG_CSPACE_FILES[*]}
+  do
+    echo "Downloading configuration file '${HIERA_CONFIG_CSPACE_FILES[CONFIG_FILE_COUNTER]}' ..."
+    config_file=${HIERA_CONFIG_CSPACE_FILES[CONFIG_FILE_COUNTER]}
+    echo $HIERA_CONFIG_GITHUB_REPO
+    config_file_url="${HIERA_CONFIG_GITHUB_REPO}/blob/${HIERA_CONFIG_GITHUB_BRANCH}/${config_file}.yaml"
+    if [[ "$WGET_FOUND" = true ]]; then
+      wget --no-verbose $config_file_url
+    else
+      # '--location' flag follows redirects
+      curl --location --remote-name $config_file_url 
+    fi
+  done
 
 echo "Creating collectionspace_common Hiera configuration file ..."
 hiera_collectionspace_common_config="
@@ -536,6 +584,7 @@ if [ $SCRIPT_RUNS_UNATTENDED == false ]; then
     # The user has entered any other value at the prompt, signifying they
     # do not want to continue the installation at this time.
     * )
+      cd $ORIGIN_DIR
       echo -e "\n"
       echo "You can later install your CollectionSpace server by entering the command:"
       if [ -x $installer_script_path ]; then
