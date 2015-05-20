@@ -511,26 +511,19 @@ let CONFIG_FILE_COUNTER=0
 for config_file in ${HIERA_CONFIG_CSPACE_FILES[*]}
   do
     echo "Downloading configuration file '${HIERA_CONFIG_CSPACE_FILES[CONFIG_FILE_COUNTER]}' ..."
-    config_file=${HIERA_CONFIG_CSPACE_FILES[CONFIG_FILE_COUNTER]}
-    echo $HIERA_CONFIG_GITHUB_REPO
-    config_file_url="${HIERA_CONFIG_GITHUB_REPO}/blob/${HIERA_CONFIG_GITHUB_BRANCH}/${config_file}.yaml"
+    config_file="${HIERA_CONFIG_CSPACE_FILES[CONFIG_FILE_COUNTER]}.yaml"
+    config_file_url="${HIERA_CONFIG_GITHUB_REPO}/${HIERA_CONFIG_GITHUB_BRANCH}/${config_file}"
     if [[ "$WGET_FOUND" = true ]]; then
-      wget --no-verbose $config_file_url
+      # The '--recursive' flag ensures that any existing files
+      # with the same names are overwriten, rather than creating
+      # new files bearing filename suffixes
+      wget --no-verbose --recursive --output-document=$config_file $config_file_url
     else
       # '--location' flag follows redirects
-      curl --location --remote-name $config_file_url 
+      curl --location --remote-name $config_file_url
     fi
+    let CONFIG_FILE_COUNTER++
   done
-
-echo "Creating collectionspace_common Hiera configuration file ..."
-hiera_collectionspace_common_config="
-file { 'Hiera collectionspace common config':
-  path    => '${HIERA_DATA_PATH}/collectionspace_common.yaml',
-  content => '---
-collectionspace::cspace_user: cspace
-',
-}"
-puppet apply --modulepath $MODULEPATH -e "${hiera_collectionspace_common_config}"
 
 # ################################################
 # Create a shell script to install CollectionSpace
