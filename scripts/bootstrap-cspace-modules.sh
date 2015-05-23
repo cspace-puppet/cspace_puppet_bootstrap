@@ -8,7 +8,7 @@
 # This script must be run as 'root' (e.g. via 'sudo')
 
 # Uncomment the following line for verbose output, useful when debugging
-set -x
+# set -x
 
 # ###########################################################
 # Variables to set
