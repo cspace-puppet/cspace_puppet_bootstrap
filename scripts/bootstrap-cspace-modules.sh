@@ -17,7 +17,7 @@
 # GitHub location of the Puppet modules for installing
 # this CollectionSpace server instance
 MODULES_GITHUB_ACCOUNT='https://github.com/cspace-puppet'
-MODULES_GITHUB_BRANCH='master'
+MODULES_GITHUB_BRANCH='v4.1'
 
 # GitHub location of the Hiera config files for
 # configuring this CollectionSpace server instance.
@@ -26,7 +26,7 @@ MODULES_GITHUB_BRANCH='master'
 
 HEIRA_CONFIG_GITHUB_ACCOUNT="https://raw.githubusercontent.com/cspace-puppet"
 HIERA_CONFIG_GITHUB_REPO="${HEIRA_CONFIG_GITHUB_ACCOUNT}/cspace_hiera_config"
-HIERA_CONFIG_GITHUB_BRANCH='master'
+HIERA_CONFIG_GITHUB_BRANCH='v4.1'
 
 # ###########################################################
 # Start of script
