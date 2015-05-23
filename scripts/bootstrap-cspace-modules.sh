@@ -17,7 +17,7 @@
 # GitHub location of the Puppet modules for installing
 # this CollectionSpace server instance
 MODULES_GITHUB_ACCOUNT='https://github.com/cspace-puppet'
-MODULES_GITHUB_BRANCH='v4.1'
+MODULES_GITHUB_BRANCH='master'
 
 # GitHub location of the Hiera config files for
 # configuring this CollectionSpace server instance.
