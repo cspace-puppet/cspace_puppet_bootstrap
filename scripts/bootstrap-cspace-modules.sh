@@ -16,7 +16,7 @@
 
 # GitHub location of the Puppet modules for installing
 # this CollectionSpace server instance
-MODULES_GITHUB_ACCOUNT='https://github.com/cspace-puppet'
+MODULES_GITHUB_ACCOUNT='https://codeload.github.com/cspace-puppet'
 MODULES_GITHUB_BRANCH='master'
 
 # GitHub location of the Hiera config files for
@@ -145,7 +145,8 @@ fi
 # (Using 'master' instead of a specific commit makes downloading and running
 # this script subject to security vulnerabilities and newly-introduced bugs.)
 
-PUPPET_INSTALL_COMMIT='557c6bfe1dba1cf6f4491fed0b0628ecd6bdf7a4' # Latest commit on a branch as of 2014-02-19
+# Commit made 2014-02-19; latest commit found as of 2015-05-26
+PUPPET_INSTALL_COMMIT='557c6bfe1dba1cf6f4491fed0b0628ecd6bdf7a4'
 PUPPET_INSTALL_GITHUB_PATH="https://raw.githubusercontent.com/danieldreier/vagrant-template/${PUPPET_INSTALL_COMMIT}/provision"
 PUPPET_INSTALL_SCRIPT_NAME='install_puppet.sh'
 
@@ -153,7 +154,7 @@ if [ ! -e ./$PUPPET_INSTALL_SCRIPT_NAME ]; then
   echo "Downloading script for installing Puppet ..."
   moduleurl="${PUPPET_INSTALL_GITHUB_PATH}/${PUPPET_INSTALL_SCRIPT_NAME}"
   if [[ "$WGET_FOUND" = true ]]; then
-    wget --no-verbose $moduleurl --output-document=$PUPPET_INSTALL_SCRIPT_NAME
+    wget --no-verbose --output-document=$PUPPET_INSTALL_SCRIPT_NAME $moduleurl
   else
     curl --output $PUPPET_INSTALL_SCRIPT_NAME $moduleurl 
   fi
@@ -220,12 +221,46 @@ fi
 
 # Install the CollectionSpace-related Puppet modules from GitHub.
 
-# FIXME: Make it possible to download modules for a specific
-# version of CollectionSpace, rather than always downloading
-# the latest modules (on the 'master' branch).
+# The following function needs to be declared before the code
+# which calls it.
+#
+# Gets the filename of an attached file, if that filename is provided
+# in either the HTTP Content-Disposition header or Location header.
+#
+# Written by Stack Exchange user 'MusashiAharon' at
+# http://stackoverflow.com/a/26500519
+#
+# Adapted: to reflect availability of either 'wget'
+# or 'curl', to use the long form of the 'curl' options, and to
+# add 'Content-Disposition' to the first 'grep' expression below.
 
-MODULES_GITHUB_ARCHIVE_PATH='archive'
-MODULES_GITHUB_ARCHIVE_FILENAME="${MODULES_GITHUB_BRANCH}.zip"
+function getUriFilename() {
+  
+  # Get only the HTTP headers for the specified URL
+  if [[ "$WGET_FOUND" = true ]]; then
+    header="$(wget --server-response --spider --quiet "$1" 2>&1 | tr -d '\r')"
+  else
+    header="$(curl --head --silent "$1" | tr -d '\r')"
+  fi
+
+  # Look for the filename in the Content-Disposition header
+  filename="$(echo "$header" | grep -o -E 'filename=.*$')"
+  if [[ -n "$filename" ]]; then
+      echo "${filename#filename=}"
+      return
+  fi
+
+  # Look for the filename in the Location header
+  filename="$(echo "$header" | grep -o -E 'Location:.*$')"
+  if [[ -n "$filename" ]]; then
+      basename "${filename#Location\:}"
+      return
+  fi
+
+  return 1
+}
+
+MODULES_GITHUB_ARCHIVE_PATH='zip'
 MODULES_GITHUB_ARCHIVE_SUFFIX="-${MODULES_GITHUB_BRANCH}"
 MODULES+=( 
   'puppet' \
@@ -244,28 +279,55 @@ for module in ${MODULES[*]}
   do
     echo "Downloading CollectionSpace Puppet module '${MODULES[MODULE_COUNTER]}' ..."
     module=${MODULES[MODULE_COUNTER]}
-    moduleurl="${MODULES_GITHUB_ACCOUNT}/${module}/${MODULES_GITHUB_ARCHIVE_PATH}/${MODULES_GITHUB_ARCHIVE_FILENAME}"
+    moduleurl="${MODULES_GITHUB_ACCOUNT}/${module}/${MODULES_GITHUB_ARCHIVE_PATH}/${MODULES_GITHUB_BRANCH}"
+    module_archive_filename="$(getUriFilename $moduleurl)"
+    if [[ -z "$module_archive_filename" ]]; then
+      echo "Could not obtain archive filename for module ${module}"
+      exit 1
+    fi
     if [[ "$WGET_FOUND" = true ]]; then
-      wget --no-verbose $moduleurl
+      wget --no-verbose --output-document=$module_archive_filename $moduleurl
     else
       # '--location' flag follows redirects
-      curl --location --remote-name $moduleurl 
+      # '--remote-header-name' flag uses the filename in the Content-Disposition header
+      # TODO: Consider whether to switch to using the module_archive_filename here
+      curl --location --remote-name --remote-header-name $moduleurl 
     fi
-    echo "Extracting files from archive file '${MODULES_GITHUB_ARCHIVE_FILENAME}' ..."
-    unzip -q $MODULES_GITHUB_ARCHIVE_FILENAME
-    echo "Removing archive file ..."
-    rm $MODULES_GITHUB_ARCHIVE_FILENAME
-    # GitHub's branch ZIP archives, when exploded to a directory,
-    # have a '-branchname' suffix that must be removed.
-    # When doing this renaming, first rename any existing directory
-    # that might cause a name collision when that suffix is removed.
-    if [ -d "${module}" ]; then
-      moved_old_module_name=`mktemp -t -d ${module}.XXXXX` || exit 1
-      mv $module $moved_old_module_name
-      echo "Backed up existing module to $moved_old_module_name ..."
+    echo "Extracting files from archive file '${module_archive_filename}' ..."
+    if [[ -f $module_archive_filename ]]; then
+      # First rename any existing directory that might cause a name collision
+      if [ -d "${module}" ]; then
+        moved_old_module_name=`mktemp -t -d ${module}.XXXXX` || exit 1
+        mv $module $moved_old_module_name
+        echo "Backed up existing module to $moved_old_module_name ..."
+      fi
+      # TODO: Add a check that the unzipping was successful here
+      unzip -q $module_archive_filename
+      echo "Removing archive file ..."
+      rm $module_archive_filename
+      # Once unzipped, the module directory will have a suffix consisting
+      # of a hyphen/dash character followed by the branch name, so that
+      # suffix will need to be removed.
+      #
+      # There's also a minor monkey wrench; as of 2015-05-26, GitHub's
+      # archive filenames for branches starting with 'v{version_number}"
+      # are dropping the leading 'v'. So we'll need to also handle this
+      # exceptional case.
+      module_dirname=${module}${MODULES_GITHUB_ARCHIVE_SUFFIX}
+      if [[ -d "${module_dirname}" ]]; then
+        echo "Renaming module directory ..."
+        mv "${module_dirname}" $module
+      else
+        # TODO: Make this regex more robust, to avoid matching
+        # irrelevant instances of '-v' strings.
+        version_stripped_module_dirname=`echo "${module_dirname}" | sed -e '/-v/s/-v/-/'`
+        if [[ -d "${version_stripped_module_dirname}" ]]; then
+          mv "${version_stripped_module_dirname}" $module
+        fi
+      fi
+    else
+      echo "Could not find archive file ${module_archive_filename} for module ${module}"
     fi
-    echo "Renaming module directory ..."
-    mv "${module}${MODULES_GITHUB_ARCHIVE_SUFFIX}" $module
     let MODULE_COUNTER++
   done
 
