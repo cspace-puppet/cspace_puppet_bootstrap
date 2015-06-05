@@ -26,7 +26,7 @@ MODULES_GITHUB_BRANCH='v4.2'
 
 HEIRA_CONFIG_GITHUB_ACCOUNT="https://raw.githubusercontent.com/cspace-puppet"
 HIERA_CONFIG_GITHUB_REPO="${HEIRA_CONFIG_GITHUB_ACCOUNT}/cspace_hiera_config"
-HIERA_CONFIG_GITHUB_BRANCH='v4.1'
+HIERA_CONFIG_GITHUB_BRANCH='v4.2'
 
 # ###########################################################
 # Start of script
