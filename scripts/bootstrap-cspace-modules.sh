@@ -654,6 +654,12 @@ if [[ "$SCRIPT_RUNS_UNATTENDED" = true ]]; then
   echo "Starting installation ..."
   if [ -x "$installer_script_path" ]; then
     sudo $installer_script_path
+	EXIT_STATUS=$?
+	if [ $EXIT_STATUS eq 0 ]; then
+	  echo "Installation of the CollectionSpace was successful.  See http://bit.ly/2a9pfyP for instructions on launching/starting CollectionSpace."
+	else
+	  echo "Installation of the CollectionSpace server failed: see output for details."
+	fi
   else
     sudo puppet apply $MODULEPATH/puppet/manifests/site.pp
     EXIT_STATUS=$?
