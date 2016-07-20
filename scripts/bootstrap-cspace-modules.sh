@@ -659,6 +659,12 @@ if [[ "$SCRIPT_RUNS_UNATTENDED" = true ]]; then
     EXIT_STATUS=$?
     if [ $EXIT_STATUS eq 0 ]; then
       sudo puppet apply $MODULEPATH/puppet/manifests/post-java.pp
+	  EXIT_STATUS=$?
+	  if [ $EXIT_STATUS eq 0 ]; then
+	    echo "Installation of the CollectionSpace was successful.  See http://bit.ly/2a9pfyP for instructions on launching/starting CollectionSpace."
+	  else
+	    echo "Installation of the CollectionSpace server failed: see output for details."
+	  fi
     else
       echo "Installation of the CollectionSpace server failed: see output for details."
     fi
