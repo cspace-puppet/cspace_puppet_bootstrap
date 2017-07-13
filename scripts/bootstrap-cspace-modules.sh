@@ -17,16 +17,13 @@
 # GitHub location of the Puppet modules for installing
 # this CollectionSpace server instance
 MODULES_GITHUB_ACCOUNT='https://codeload.github.com/cspace-puppet'
-MODULES_GITHUB_BRANCH='master'
+MODULES_GITHUB_BRANCH='v4.4-branch'
 
-# GitHub location of the Hiera config files for
-# configuring this CollectionSpace server instance.
-# (Config files might be downloaded from a different
-# GitHub repo - or account - than the modules repo.)
-
+# GitHub location of the Hiera config files for configuring
+# this CollectionSpace server instance.
 HEIRA_CONFIG_GITHUB_ACCOUNT="https://raw.githubusercontent.com/cspace-puppet"
 HIERA_CONFIG_GITHUB_REPO="${HEIRA_CONFIG_GITHUB_ACCOUNT}/cspace_hiera_config"
-HIERA_CONFIG_GITHUB_BRANCH='master'
+HIERA_CONFIG_GITHUB_BRANCH='v4.4-branch'
 
 # ###########################################################
 # Start of script
@@ -657,11 +654,23 @@ if [[ "$SCRIPT_RUNS_UNATTENDED" = true ]]; then
   echo "Starting installation ..."
   if [ -x "$installer_script_path" ]; then
     sudo $installer_script_path
+	EXIT_STATUS=$?
+	if [ $EXIT_STATUS -eq 0 ]; then
+	  echo "Installation of the CollectionSpace was successful.  See http://bit.ly/2a9pfyP for instructions on launching/starting CollectionSpace."
+	else
+	  echo "Installation of the CollectionSpace server failed: see output for details."
+	fi
   else
     sudo puppet apply $MODULEPATH/puppet/manifests/site.pp
     EXIT_STATUS=$?
-    if [ $EXIT_STATUS eq 0 ]; then
+    if [ $EXIT_STATUS -eq 0 ]; then
       sudo puppet apply $MODULEPATH/puppet/manifests/post-java.pp
+	  EXIT_STATUS=$?
+	  if [ $EXIT_STATUS -eq 0 ]; then
+	    echo "Installation of the CollectionSpace was successful.  See http://bit.ly/2a9pfyP for instructions on launching/starting CollectionSpace."
+	  else
+	    echo "Installation of the CollectionSpace server failed: see output for details."
+	  fi
     else
       echo "Installation of the CollectionSpace server failed: see output for details."
     fi
