@@ -1,6 +1,8 @@
 bootstrap
 =========
 
+REM - 7/2017 Updating for Ubuntu 16 LTS.
+
 Bootstrapping to get Puppet, the CollectionSpace Puppet modules, and their respective dependencies,
 along with the Hiera key/value store, onto a host.
 
