@@ -332,11 +332,19 @@ for module in ${MODULES[*]}
 # CollectionSpace Puppet modules depend.
 
 echo "Downloading required Puppet modules from Puppet Forge ..."
-PF_MODULES+=( 
+PF_UNINSTALLMODULES+=( 
   'puppetlabs-inifile' \
   'puppetlabs-postgresql' \
   'puppetlabs-stdlib --version "<4.0.0"' \
   'puppetlabs-vcsrepo' \
+  )
+PF_MODULES+=( 
+  'puppetlabs-apt --version "2.3.0"' \
+  'puppetlabs-concat --version "2.2.0"' \
+  'puppetlabs-inifile --version "1.6.0"' \
+  'puppetlabs-postgresql --version "4.8.0"' \
+  'puppetlabs-stdlib --version "4.13.1"' \
+  'puppetlabs-vcsrepo --version "1.4.0"' \
   )
 let PF_COUNTER=0
 for pf_module in ${PF_MODULES[*]}
@@ -344,7 +352,7 @@ for pf_module in ${PF_MODULES[*]}
     # Uninstallation, followed by installation, appears to be necessary
     # to pick up dependency modules.
     echo "Uninstalling Puppet module ${PF_MODULES[PF_COUNTER]} (if present) ..."
-    puppet module uninstall --force --modulepath=$MODULEPATH ${PF_MODULES[PF_COUNTER]} > /dev/null 2>&1
+    puppet module uninstall --force --modulepath=$MODULEPATH ${PF_UNINSTALLMODULES[PF_COUNTER]} > /dev/null 2>&1
     echo "Installing Puppet module ${PF_MODULES[PF_COUNTER]} ..."
     puppet module install --modulepath=$MODULEPATH ${PF_MODULES[PF_COUNTER]}
     let PF_COUNTER++
