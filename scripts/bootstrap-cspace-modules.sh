@@ -335,7 +335,7 @@ echo "Downloading required Puppet modules from Puppet Forge ..."
 PF_MODULES+=( 
   'puppetlabs-inifile' \
   'puppetlabs-postgresql' \
-  'puppetlabs-stdlib' \
+  'puppetlabs-stdlib --version "<4.0.0"' \
   'puppetlabs-vcsrepo' \
   )
 let PF_COUNTER=0
