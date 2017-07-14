@@ -349,15 +349,17 @@ PF_MODULES+=(
   'puppetlabs-vcsrepo --version 1.4.0' \
   )
 let PF_COUNTER=0
-for pf_module in ${PF_MODULES[*]}
+for pf_module in ${PF_UNINSTALLMODULES[*]}
   do
     # Uninstallation, followed by installation, appears to be necessary
     # to pick up dependency modules.
     echo "Uninstalling Puppet module ${PF_UNINSTALLMODULES[PF_COUNTER]} (if present) ..."
-    puppet module uninstall --force --modulepath=$MODULEPATH ${PF_UNINSTALLMODULES[PF_COUNTER]} > /dev/null 2>&1
+    puppet module uninstall --force --modulepath=$MODULEPATH ${PF_UNINSTALLMODULES[PF_COUNTER]}
+	#
+	# Install with a specific version due to a compatibility issue: see 
     echo "Installing Puppet module ${PF_MODULES[PF_COUNTER]} ..."
     puppet module install --modulepath=$MODULEPATH ${PF_MODULES[PF_COUNTER]}
-    let PF_COUNTER++
+	let PF_COUNTER++
   done
 
 # ################
