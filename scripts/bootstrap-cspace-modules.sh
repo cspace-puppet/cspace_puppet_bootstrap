@@ -335,7 +335,7 @@ echo "Downloading required Puppet modules from Puppet Forge ..."
 PF_UNINSTALLMODULES+=( 
   'puppetlabs-inifile' \
   'puppetlabs-postgresql' \
-  'puppetlabs-stdlib --version "<4.0.0"' \
+  'puppetlabs-stdlib' \
   'puppetlabs-vcsrepo' \
   )
 PF_MODULES+=( 
