@@ -175,6 +175,9 @@ fi
 
 PUPPET_EXECUTABLE='puppet'
 if [[ "$PUPPET_EXECUTABLE_FOUND" = false ]]; then
+  # Update apt list first
+  apt update
+  
   # Otherwise, install 'puppet' via whichever package manager is available.
   echo "Attempting to install Puppet via package manager, using a default system repo ..."
   if [ ! -z $APT_GET_EXECUTABLE_PATH ]; then
