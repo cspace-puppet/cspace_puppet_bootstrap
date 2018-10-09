@@ -238,7 +238,7 @@ function getUriFilename() {
   
   # Get only the HTTP headers for the specified URL
   if [[ "$WGET_FOUND" = true ]]; then
-    header="$(wget --server-response --spider --quiet "$1" 2>&1 | tr -d '\r')"
+    header="$(wget --server-response --spider -U 'Wget/1.0' --quiet "$1" 2>&1 | tr -d '\r')"
   else
     header="$(curl --head --silent "$1" | tr -d '\r')"
   fi
