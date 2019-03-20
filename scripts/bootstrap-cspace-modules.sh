@@ -17,13 +17,13 @@
 # GitHub location of the Puppet modules for installing
 # this CollectionSpace server instance
 MODULES_GITHUB_ACCOUNT='https://codeload.github.com/cspace-puppet'
-MODULES_GITHUB_BRANCH='v5.0-branch'
+MODULES_GITHUB_BRANCH='v5.1-branch'
 
 # GitHub location of the Hiera config files for configuring
 # this CollectionSpace server instance.
 HEIRA_CONFIG_GITHUB_ACCOUNT="https://raw.githubusercontent.com/cspace-puppet"
 HIERA_CONFIG_GITHUB_REPO="${HEIRA_CONFIG_GITHUB_ACCOUNT}/cspace_hiera_config"
-HIERA_CONFIG_GITHUB_BRANCH='v5.0-branch'
+HIERA_CONFIG_GITHUB_BRANCH='v5.1-branch'
 
 # ###########################################################
 # Start of script
@@ -73,7 +73,7 @@ fi
 
 if [[ "$WGET_FOUND" = true ]]; then
   echo "Found executable file '${WGET_EXECUTABLE}' ..."
-else 
+else
   CURL_EXECUTABLE='curl'
   echo "Checking for existence of executable file '${CURL_EXECUTABLE}' ..."
   if [ `command -v ${CURL_EXECUTABLE}` ]; then
@@ -92,7 +92,7 @@ APT_GET_EXECUTABLE='apt-get'
 APT_GET_EXECUTABLE_PATH=`command -v ${APT_GET_EXECUTABLE}`
 YUM_EXECUTABLE='yum'
 YUM_EXECUTABLE_PATH=`command -v ${YUM_EXECUTABLE}`
- 
+
 # Verify that the 'unzip' executable file exists and is
 # in the current PATH. Install it if not already present.
 
@@ -153,7 +153,7 @@ if [ ! -e ./$PUPPET_INSTALL_SCRIPT_NAME ]; then
   if [[ "$WGET_FOUND" = true ]]; then
     wget --no-verbose --output-document=$PUPPET_INSTALL_SCRIPT_NAME $moduleurl
   else
-    curl --output $PUPPET_INSTALL_SCRIPT_NAME $moduleurl 
+    curl --output $PUPPET_INSTALL_SCRIPT_NAME $moduleurl
   fi
 fi
 
@@ -177,7 +177,7 @@ PUPPET_EXECUTABLE='puppet'
 if [[ "$PUPPET_EXECUTABLE_FOUND" = false ]]; then
   # Update apt list first
   apt update
-  
+
   # Otherwise, install 'puppet' via whichever package manager is available.
   echo "Attempting to install Puppet via package manager, using a default system repo ..."
   if [ ! -z $APT_GET_EXECUTABLE_PATH ]; then
@@ -235,7 +235,7 @@ fi
 # add 'Content-Disposition' to the first 'grep' expression below.
 
 function getUriFilename() {
-  
+
   # Get only the HTTP headers for the specified URL
   if [[ "$WGET_FOUND" = true ]]; then
     header="$(wget --server-response --spider -U 'Wget/1.0' --quiet "$1" 2>&1 | tr -d '\r')"
@@ -262,7 +262,7 @@ function getUriFilename() {
 
 MODULES_GITHUB_ARCHIVE_PATH='zip'
 MODULES_GITHUB_ARCHIVE_SUFFIX="-${MODULES_GITHUB_BRANCH}"
-MODULES+=( 
+MODULES+=(
   'puppet' \
   'cspace_environment' \
   'cspace_server_dependencies' \
@@ -291,7 +291,7 @@ for module in ${MODULES[*]}
       # '--location' flag follows redirects
       # '--remote-header-name' flag uses the filename in the Content-Disposition header
       # TODO: Consider whether to switch to using the module_archive_filename here
-      curl --location --remote-name --remote-header-name $moduleurl 
+      curl --location --remote-name --remote-header-name $moduleurl
     fi
     echo "Extracting files from archive file '${module_archive_filename}' ..."
     if [[ -f $module_archive_filename ]]; then
@@ -335,7 +335,7 @@ for module in ${MODULES[*]}
 # CollectionSpace Puppet modules depend.
 
 echo "Downloading required Puppet modules from Puppet Forge ..."
-PF_UNINSTALLMODULES+=( 
+PF_UNINSTALLMODULES+=(
   'puppetlabs-apt' \
   'puppetlabs-concat' \
   'puppetlabs-inifile' \
@@ -343,7 +343,7 @@ PF_UNINSTALLMODULES+=(
   'puppetlabs-stdlib' \
   'puppetlabs-vcsrepo' \
   )
-PF_MODULES+=( 
+PF_MODULES+=(
   'puppetlabs-apt --version 2.3.0' \
   'puppetlabs-concat --version 2.2.0' \
   'puppetlabs-inifile --version 1.6.0' \
@@ -359,7 +359,7 @@ for pf_module in ${PF_UNINSTALLMODULES[*]}
     echo "Uninstalling Puppet module ${PF_UNINSTALLMODULES[PF_COUNTER]} (if present) ..."
     puppet module uninstall --force --modulepath=$MODULEPATH ${PF_UNINSTALLMODULES[PF_COUNTER]}
 	#
-	# Install with a specific version due to a compatibility issue: see 
+	# Install with a specific version due to a compatibility issue: see
     echo "Installing Puppet module ${PF_MODULES[PF_COUNTER]} ..."
     puppet module install --modulepath=$MODULEPATH ${PF_MODULES[PF_COUNTER]}
 	let PF_COUNTER++
@@ -415,7 +415,7 @@ echo "Setting 'modulepath' in the main Puppet configuration file ..."
 # Physical path to Puppet's configuration directory.
 # The path below is for a standalone, non-Puppet Enterprise deployment of Puppet.
 # For documentation on this configuration directory and its system-specific locations, see:
-# http://docs.puppetlabs.com/puppet/latest/reference/dirs_confdir.html 
+# http://docs.puppetlabs.com/puppet/latest/reference/dirs_confdir.html
 PUPPET_CONFIG_PATH=$PUPPETPATH
 # Variable holding the path to Puppet's configuration directory, used in its own
 # configuration files.
@@ -509,7 +509,7 @@ command -v hiera >/dev/null 2>&1 || \
 # ###############
 # Configure Hiera
 # ###############
-  
+
 # Create a default (initially minimal) Hiera configuration file.
 #
 # TODO: For suggestions related to a plausible initial, non-minimal
@@ -539,7 +539,7 @@ file { 'Hiera config':
 :hierarchy:
   - ${HIERA_CONFIG_CSPACE_INSTANCE}
   - ${HIERA_CONFIG_CSPACE_COMMON}
-  - common', 
+  - common',
 }"
 puppet apply --modulepath $MODULEPATH -e "${hiera_config}"
 
@@ -579,7 +579,7 @@ HIERA_CONFIG_CSPACE_FILES+=(
   'collectionspace_instance' \
   'collectionspace_common' \
   )
-  
+
 cd $HIERA_DATA_PATH
 let CONFIG_FILE_COUNTER=0
 for config_file in ${HIERA_CONFIG_CSPACE_FILES[*]}
