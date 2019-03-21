@@ -14,6 +14,8 @@
 # Variables to set
 # ###########################################################
 
+source /etc/environment
+
 # GitHub location of the Puppet modules for installing
 # this CollectionSpace server instance
 MODULES_GITHUB_ACCOUNT='https://codeload.github.com/cspace-puppet'
@@ -211,8 +213,13 @@ PUPPETPATH='/etc/puppet'
 MODULEPATH="${PUPPETPATH}/modules"
 echo "Checking for existence of Puppet module directory '$MODULEPATH' ..."
 if [ ! -d "${MODULEPATH}" ]; then
-  echo "Could not find Puppet module directory '$MODULEPATH'"
-  exit 1
+  # RETRY
+  PUPPETPATH='/usr/share/puppet'
+  MODULEPATH="${PUPPETPATH}/modules"
+  if [ ! -d "${MODULEPATH}" ]; then
+    echo "Could not find Puppet module directory '$MODULEPATH'"
+    exit 1
+  fi
 fi
 
 # #######################################
@@ -273,63 +280,68 @@ MODULES+=(
   'cspace_user' \
   )
 
-cd $MODULEPATH
-let MODULE_COUNTER=0
-for module in ${MODULES[*]}
-  do
-    echo "Downloading CollectionSpace Puppet module '${MODULES[MODULE_COUNTER]}' ..."
-    module=${MODULES[MODULE_COUNTER]}
-    moduleurl="${MODULES_GITHUB_ACCOUNT}/${module}/${MODULES_GITHUB_ARCHIVE_PATH}/${MODULES_GITHUB_BRANCH}"
-    module_archive_filename="$(getUriFilename $moduleurl)"
-    if [[ -z "$module_archive_filename" ]]; then
-      echo "Could not obtain archive filename for module ${module}"
-      exit 1
-    fi
-    if [[ "$WGET_FOUND" = true ]]; then
-      wget --no-verbose --output-document=$module_archive_filename $moduleurl
-    else
-      # '--location' flag follows redirects
-      # '--remote-header-name' flag uses the filename in the Content-Disposition header
-      # TODO: Consider whether to switch to using the module_archive_filename here
-      curl --location --remote-name --remote-header-name $moduleurl
-    fi
-    echo "Extracting files from archive file '${module_archive_filename}' ..."
-    if [[ -f $module_archive_filename ]]; then
-      # First rename any existing directory that might cause a name collision
-      if [ -d "${module}" ]; then
-        moved_old_module_name=`mktemp -t -d ${module}.XXXXX` || exit 1
-        mv $module $moved_old_module_name
-        echo "Backed up existing module to $moved_old_module_name ..."
+# download modules from github when not running in vagrant
+if [[ -z "${VAGRANT_ENV}" ]]; then
+  cd $MODULEPATH
+  let MODULE_COUNTER=0
+  for module in ${MODULES[*]}
+    do
+      echo "Downloading CollectionSpace Puppet module '${MODULES[MODULE_COUNTER]}' ..."
+      module=${MODULES[MODULE_COUNTER]}
+      moduleurl="${MODULES_GITHUB_ACCOUNT}/${module}/${MODULES_GITHUB_ARCHIVE_PATH}/${MODULES_GITHUB_BRANCH}"
+      module_archive_filename="$(getUriFilename $moduleurl)"
+      if [[ -z "$module_archive_filename" ]]; then
+        echo "Could not obtain archive filename for module ${module}"
+        exit 1
       fi
-      # TODO: Add a check that the unzipping was successful here
-      unzip -q $module_archive_filename
-      echo "Removing archive file ..."
-      rm $module_archive_filename
-      # Once unzipped, the module directory will have a suffix consisting
-      # of a hyphen/dash character followed by the branch name, so that
-      # suffix will need to be removed.
-      #
-      # There's also a minor monkey wrench; as of 2015-05-26, GitHub's
-      # archive filenames for branches starting with 'v{version_number}"
-      # are dropping the leading 'v'. So we'll need to also handle this
-      # exceptional case.
-      module_dirname=${module}${MODULES_GITHUB_ARCHIVE_SUFFIX}
-      if [[ -d "${module_dirname}" ]]; then
-        echo "Renaming module directory ..."
-        mv "${module_dirname}" $module
+      if [[ "$WGET_FOUND" = true ]]; then
+        wget --no-verbose --output-document=$module_archive_filename $moduleurl
       else
-        # TODO: Make this regex more robust, to avoid matching
-        # irrelevant instances of '-v' strings.
-        version_stripped_module_dirname=`echo "${module_dirname}" | sed -e '/-v/s/-v/-/'`
-        if [[ -d "${version_stripped_module_dirname}" ]]; then
-          mv "${version_stripped_module_dirname}" $module
-        fi
+        # '--location' flag follows redirects
+        # '--remote-header-name' flag uses the filename in the Content-Disposition header
+        # TODO: Consider whether to switch to using the module_archive_filename here
+        curl --location --remote-name --remote-header-name $moduleurl
       fi
-    else
-      echo "Could not find archive file ${module_archive_filename} for module ${module}"
-    fi
-    let MODULE_COUNTER++
-  done
+      echo "Extracting files from archive file '${module_archive_filename}' ..."
+      if [[ -f $module_archive_filename ]]; then
+        # First rename any existing directory that might cause a name collision
+        if [ -d "${module}" ]; then
+          moved_old_module_name=`mktemp -t -d ${module}.XXXXX` || exit 1
+          mv $module $moved_old_module_name
+          echo "Backed up existing module to $moved_old_module_name ..."
+        fi
+        # TODO: Add a check that the unzipping was successful here
+        unzip -q $module_archive_filename
+        echo "Removing archive file ..."
+        rm $module_archive_filename
+        # Once unzipped, the module directory will have a suffix consisting
+        # of a hyphen/dash character followed by the branch name, so that
+        # suffix will need to be removed.
+        #
+        # There's also a minor monkey wrench; as of 2015-05-26, GitHub's
+        # archive filenames for branches starting with 'v{version_number}"
+        # are dropping the leading 'v'. So we'll need to also handle this
+        # exceptional case.
+        module_dirname=${module}${MODULES_GITHUB_ARCHIVE_SUFFIX}
+        if [[ -d "${module_dirname}" ]]; then
+          echo "Renaming module directory ..."
+          mv "${module_dirname}" $module
+        else
+          # TODO: Make this regex more robust, to avoid matching
+          # irrelevant instances of '-v' strings.
+          version_stripped_module_dirname=`echo "${module_dirname}" | sed -e '/-v/s/-v/-/'`
+          if [[ -d "${version_stripped_module_dirname}" ]]; then
+            mv "${version_stripped_module_dirname}" $module
+          fi
+        fi
+      else
+        echo "Could not find archive file ${module_archive_filename} for module ${module}"
+      fi
+      let MODULE_COUNTER++
+    done
+else
+  echo "Running in vagrant, skipping cspace module download step"
+fi
 
 # Install any Puppet Forge-hosted Puppet modules on which the
 # CollectionSpace Puppet modules depend.
@@ -347,7 +359,7 @@ PF_MODULES+=(
   'puppetlabs-apt --version 2.3.0' \
   'puppetlabs-concat --version 2.2.0' \
   'puppetlabs-inifile --version 1.6.0' \
-  'puppetlabs-postgresql --version 4.8.0' \
+  'puppetlabs-postgresql --version 5.12.1' \
   'puppetlabs-stdlib --version 4.13.1' \
   'puppetlabs-vcsrepo --version 1.4.0' \
   )
@@ -522,26 +534,33 @@ HIERA_DATA_PATH=$PUPPETPATH/hieradata
 if [ ! -d "$HIERA_DATA_PATH" ]; then
   mkdir $HIERA_DATA_PATH
 fi
-HIERA_CONFIG_DIRECTORY=/etc
+HIERA_CONFIG_DIRECTORY=/etc/puppet
 HIERA_CONFIG_FILEPATH=$HIERA_CONFIG_DIRECTORY/$HIERA_CONFIG_FILENAME
 # Hiera config files specific to CollectionSpace configuration
 HIERA_CONFIG_CSPACE_INSTANCE=collectionspace_instance
 HIERA_CONFIG_CSPACE_COMMON=collectionspace_common
 echo "Creating default Hiera configuration file ..."
+HIERA_CONFIG_CONTENT="
+version: 5
+defaults:
+  datadir: ${HIERA_DATA_PATH}
+  data_hash: yaml_data
+hierarchy:
+  - name: \"CollectionSpace config values\"
+    paths:
+      - ${HIERA_CONFIG_CSPACE_INSTANCE}.yaml
+      - ${HIERA_CONFIG_CSPACE_COMMON}.yaml
+      - common.yaml
+"
 hiera_config="
 file { 'Hiera config':
   path    => '${PUPPETPATH}/${HIERA_CONFIG_FILENAME}',
   content => '---
-:backends:
-  - yaml
-:yaml:
-  :datadir: ${HIERA_DATA_PATH}
-:hierarchy:
-  - ${HIERA_CONFIG_CSPACE_INSTANCE}
-  - ${HIERA_CONFIG_CSPACE_COMMON}
-  - common',
+$HIERA_CONFIG_CONTENT
+',
 }"
 puppet apply --modulepath $MODULEPATH -e "${hiera_config}"
+echo "$HIERA_CONFIG_CONTENT" > $HIERA_CONFIG_DIRECTORY/$HIERA_CONFIG_FILENAME
 
 # Symlink the Puppet-specific hiera.yaml config file to the generic location
 # for that file, if the latter is missing. That way, 'hiera' will find its
@@ -596,6 +615,7 @@ for config_file in ${HIERA_CONFIG_CSPACE_FILES[*]}
       # '--location' flag follows redirects
       curl --location --remote-name $config_file_url
     fi
+    echo "Configuration downloaded to '`realpath $config_file`'"
     let CONFIG_FILE_COUNTER++
   done
 
