@@ -18,7 +18,7 @@ These are the actively tested platforms for the installer:
 Start by pulling the cspace puppet modules:
 
 ```bash
-./setup.sh v5.1-branch # branch of current version
+./setup.sh v5.2-branch # branch of current version
 ```
 
 The default [Vagrant](#) configuration uses Ubuntu:
